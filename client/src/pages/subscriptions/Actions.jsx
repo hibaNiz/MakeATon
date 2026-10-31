@@ -6,7 +6,7 @@ import Dialog from '../catalog/Dialog';
 import { Control, FormError } from './Fields';
 
 const actions = {
-  quote: { label: 'Issue quotation', description: 'Prepare this quotation for the customer. Share it with them separately, then record their acceptance here.' },
+  quote: { label: 'Issue quotation', description: 'Make this quotation available in the customer portal. The customer can accept it there, or you can record their acceptance here.' },
   confirm: { label: 'Confirm acceptance', description: 'Confirm that the customer has accepted this quotation. You can activate the subscription afterward.' },
   activate: { label: 'Activate subscription', description: 'Start this subscription with the saved product prices and agreed start date.' },
   pause: { label: 'Pause subscription', description: 'Pause this subscription until it is ready to resume.' },
