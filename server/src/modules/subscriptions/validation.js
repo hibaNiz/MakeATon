@@ -37,3 +37,9 @@ export const draftSchema = z.object({
   if (data.expiry_date && data.expiry_date < data.start_date)
     ctx.addIssue({ code: 'custom', path: ['expiry_date'], message: 'Expiry must be on or after the start date' });
 });
+
+export const actionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('quote'), quotation_valid_until: date.optional() }).strict(),
+  ...['confirm', 'activate', 'pause', 'resume', 'close', 'revise'].map(action => z.object({ action: z.literal(action) }).strict()),
+  z.object({ action: z.literal('renew'), expiry_date: date }).strict(),
+]);
