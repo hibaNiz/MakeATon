@@ -28,7 +28,14 @@ test('Catalog HTTP API with PostgreSQL', { skip: !process.env.TEST_DATABASE_URL 
   const app = await createApp();
   server = await new Promise(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
-  const tokens = Object.fromEntries(['ADMIN', 'STAFF', 'CUSTOMER'].map((role, i) => [role, signToken({ id: i + 1, name: role, role, email: role.toLowerCase() + '@example.com' })]));
+  const tokens = {};
+  for (const role of ['ADMIN', 'STAFF', 'CUSTOMER']) {
+    const { rows } = await pool.query(
+      'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING *',
+      [role, role.toLowerCase() + '@example.com', 'unused-test-hash', role]
+    );
+    tokens[role] = signToken(rows[0]);
+  }
   async function request(path, { role = 'ADMIN', method = 'GET', body, status = 200 } = {}) {
     const res = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(role ? { Authorization: 'Bearer ' + tokens[role] } : {}) }, body: body ? JSON.stringify(body) : undefined });
     const data = res.status === 204 ? null : await res.json();

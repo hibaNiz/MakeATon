@@ -10,20 +10,32 @@ export const mountPath = '/api/users';
 
 const router = Router();
 const cols = 'id, name, email, role, phone, company, address, created_at';
+const personId = z.coerce.number().int().positive().max(2147483647);
+const listFilters = z.object({
+  role: z.enum(['ADMIN', 'STAFF', 'CUSTOMER']).optional(),
+  search: z.string().trim().max(200).optional(),
+  page: z.coerce.number().int().min(1).max(1000000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
 
 // GET /api/users?role=CUSTOMER&search=acme&page=1
 router.get('/', allow('ADMIN', 'STAFF'), asyncRoute(async (req, res) => {
-  const { page, pageSize, offset } = paging(req.query);
+  const filters = listFilters.parse(req.query);
+  if (req.user.role === 'STAFF') {
+    if (filters.role && filters.role !== 'CUSTOMER') throw new HttpError(403, 'Only the admin can view staff');
+    filters.role = 'CUSTOMER';
+  }
+  const { page, pageSize, offset } = paging(filters);
   const where = [];
   const params = [];
-  if (req.query.role) { params.push(req.query.role); where.push(`role = $${params.length}`); }
-  if (req.query.search) {
-    params.push(`%${req.query.search}%`);
+  if (filters.role) { params.push(filters.role); where.push(`role = $${params.length}`); }
+  if (filters.search) {
+    params.push(`%${filters.search.replace(/[\\%_]/g, '\\$&')}%`);
     where.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length} OR company ILIKE $${params.length})`);
   }
   const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
   const [list, count] = await Promise.all([
-    query(`SELECT ${cols} FROM users ${w} ORDER BY name LIMIT ${pageSize} OFFSET ${offset}`, params),
+    query(`SELECT ${cols} FROM users ${w} ORDER BY name, id LIMIT ${pageSize} OFFSET ${offset}`, params),
     query(`SELECT count(*)::int AS n FROM users ${w}`, params),
   ]);
   res.json({ items: list.rows, total: count.rows[0].n, page, pageSize });
@@ -58,21 +70,28 @@ router.post('/', allow('ADMIN', 'STAFF'), asyncRoute(async (req, res) => {
 
 // PUT /api/users/:id  — edit contact details (not password / role)
 router.put('/:id', allow('ADMIN', 'STAFF'), asyncRoute(async (req, res) => {
+  const id = personId.parse(req.params.id);
   const data = personSchema.pick({ name: true, phone: true, company: true, address: true }).parse(req.body);
-  const target = await query('SELECT role FROM users WHERE id = $1', [req.params.id]);
+  const target = await query('SELECT role FROM users WHERE id = $1', [id]);
   if (!target.rows.length) throw new HttpError(404, 'User not found');
   if (target.rows[0].role !== 'CUSTOMER' && req.user.role !== 'ADMIN') throw new HttpError(403, 'Only the admin can edit staff');
   const { rows } = await query(
     `UPDATE users SET name=$1, phone=$2, company=$3, address=$4 WHERE id=$5 RETURNING ${cols}`,
-    [data.name, data.phone, data.company, data.address, req.params.id]
+    [data.name, data.phone, data.company, data.address, id]
   );
   res.json(rows[0]);
 }));
 
 // DELETE /api/users/:id  — admin only; blocked if they have subscriptions
 router.delete('/:id', allow('ADMIN'), asyncRoute(async (req, res) => {
-  if (Number(req.params.id) === req.user.id) throw new HttpError(400, "You can't delete your own account");
-  await query('DELETE FROM users WHERE id = $1 AND role <> $2', [req.params.id, 'ADMIN']);
+  const id = personId.parse(req.params.id);
+  if (id === req.user.id) throw new HttpError(400, "You can't delete your own account");
+  const deleted = await query('DELETE FROM users WHERE id = $1 AND role <> $2 RETURNING id', [id, 'ADMIN']);
+  if (!deleted.rowCount) {
+    const target = await query('SELECT role FROM users WHERE id = $1', [id]);
+    if (target.rows.length) throw new HttpError(403, 'Admin accounts cannot be deleted');
+    throw new HttpError(404, 'User not found');
+  }
   res.status(204).end();
 }));
 
