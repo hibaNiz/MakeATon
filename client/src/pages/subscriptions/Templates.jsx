@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Card, Empty, PageHeader, Pagination, useToast } from '../../components/ui';
 import { api, qs } from '../../lib/api';
 import { useApi, useDebounced } from '../../lib/hooks';
@@ -36,7 +37,7 @@ export default function Templates() {
           <table className="catalog-table"><thead><tr><th scope="col">Template</th><th scope="col">Plan</th><th scope="col">Validity</th><th scope="col" className="right">Actions</th></tr></thead>
             <tbody>{state.data.items.map(row => <tr key={row.id}>
               <td><strong>{row.name}</strong><span className="catalog-cell-note">{row.line_count} product lines</span></td><td>{row.plan_name}</td><td>{row.validity_days} days</td>
-              <td><div className="catalog-actions"><Button variant="secondary" onClick={() => setAction({ type: 'edit', record: row })} aria-label={`Edit ${row.name}`}>Edit</Button><Button variant="ghost" onClick={() => setAction({ type: 'delete', record: row })} aria-label={`Delete ${row.name}`}>Delete</Button></div></td>
+              <td><div className="catalog-actions"><Link className="btn btn-primary" to={'/subscriptions/new?template=' + row.id} aria-label={`Use ${row.name}`}>Use template</Link><Button variant="secondary" onClick={() => setAction({ type: 'edit', record: row })} aria-label={`Edit ${row.name}`}>Edit</Button><Button variant="ghost" onClick={() => setAction({ type: 'delete', record: row })} aria-label={`Delete ${row.name}`}>Delete</Button></div></td>
             </tr>)}</tbody></table>
         </div>}
         <Pagination page={page} pageSize={12} total={state.data.total} onPage={setPage} />
