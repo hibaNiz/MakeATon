@@ -1,0 +1,13 @@
+.subscription-lines > p { margin: 0 0 12px; }
+.subscription-line { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 90px auto; gap: 12px; align-items: end; padding: 16px 0; border-top: 1px solid var(--line); }
+.subscription-line .field { margin: 0; }
+.subscription-line-price { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }
+.subscription-lines > .btn { margin-top: 12px; }
+.subscriptions .table-wrap { margin-top: 16px; }
+.subscriptions .field { min-width: 0; }
+.subscriptions .input { width: 100%; }
+.subscriptions .form-actions { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .subscription-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .subscription-line > :first-child { grid-column: 1 / -1; }
+}
