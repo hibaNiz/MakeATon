@@ -1,0 +1,15 @@
+# Dependencies (everyone runs "npm install" themselves)
+node_modules
+
+# Secrets — never commit your real .env (commit .env.example instead)
+.env
+
+# Build output
+client/dist/
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
