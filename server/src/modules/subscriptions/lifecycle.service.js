@@ -12,9 +12,15 @@ const transitions = {
 };
 
 // A locked row makes competing actions serial: the second request sees the first one's new state.
-export async function transitionSubscription(id, data) {
+export async function transitionSubscription(id, data, { customerId } = {}) {
   return transaction(async client => {
     const subscription = await lockSubscription(client, id);
+    if (customerId !== undefined) {
+      if (subscription.customer_id !== customerId || subscription.status === 'DRAFT')
+        throw new HttpError(404, 'Subscription not found');
+      if (!['confirm', 'pause', 'resume', 'close', 'renew'].includes(data.action))
+        throw new HttpError(403, 'This action is available to staff only');
+    }
     const rule = transitions[data.action];
     if (!rule?.from.includes(subscription.status))
       throw new HttpError(409, `Cannot ${data.action} a ${subscription.status.toLowerCase()} subscription`);
