@@ -2,7 +2,11 @@ import { query, transaction } from '../../lib/db.js';
 import { HttpError } from '../../lib/errors.js';
 import { selectedPlan, selectedLines } from './references.js';
 
-export async function getTemplate(id, client = { query }) {
+export async function getTemplate(id, client) {
+  if (!client) return transaction(async tx => {
+    await tx.query('SELECT id FROM quotation_templates WHERE id=$1 FOR SHARE', [id]);
+    return getTemplate(id, tx);
+  });
   const { rows: [template] } = await client.query(`SELECT t.*, p.name AS plan_name
     FROM quotation_templates t JOIN plans p ON p.id=t.plan_id WHERE t.id=$1`, [id]);
   if (!template) throw new HttpError(404, 'Quotation template not found');

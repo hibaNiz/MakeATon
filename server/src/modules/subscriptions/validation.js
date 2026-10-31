@@ -24,3 +24,16 @@ export const templateSchema = z.object({
   validity_days: integer.pipe(z.number().min(1).max(365)).default(30), notes, lines,
 }).strict();
 export const templateFilters = listSchema.omit({ active: true }).strict();
+
+export const statuses = ['DRAFT', 'QUOTATION', 'CONFIRMED', 'ACTIVE', 'PAUSED', 'CLOSED'];
+export const subscriptionFilters = templateFilters.extend({
+  status: z.enum(statuses).optional(), customer_id: recordId.optional(),
+});
+export const draftSchema = z.object({
+  customer_id: recordId, plan_id: recordId, start_date: date, expiry_date: optional(date),
+  payment_term_days: integer.pipe(z.number().min(0).max(365)).default(15),
+  quotation_valid_until: optional(date), discount_id: optional(recordId), notes, lines,
+}).strict().superRefine((data, ctx) => {
+  if (data.expiry_date && data.expiry_date < data.start_date)
+    ctx.addIssue({ code: 'custom', path: ['expiry_date'], message: 'Expiry must be on or after the start date' });
+});

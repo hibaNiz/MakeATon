@@ -93,4 +93,73 @@ test('Subscriptions HTTP API with PostgreSQL', { skip: !process.env.TEST_DATABAS
     await request('/products/' + product.id, { method: 'PATCH', body: { active: true } });
     await request('/templates', { method: 'POST', status: 400, body: { ...templateData, plan_id: 2147483647 } });
   });
+
+  const draftData = { customer_id: users.CUSTOMER.id, plan_id: plan.id, start_date: '2026-10-31',
+    expiry_date: '2027-10-31', lines: templateData.lines };
+  const createDraft = (patch = {}) => request('/subscriptions', { method: 'POST', status: 201, body: { ...draftData, ...patch } });
+  await t.test('draft access, customer accounts and server-owned fields are enforced', async () => {
+    await request('/subscriptions', { role: null, status: 401 });
+    for (const method of ['GET', 'POST', 'PUT', 'DELETE'])
+      await request('/subscriptions' + (['PUT', 'DELETE'].includes(method) ? '/1' : ''), { role: 'CUSTOMER', method, body: method === 'GET' ? undefined : {}, status: 403 });
+    for (const patch of [{ customer_id: users.STAFF.id }, { customer_id: 2147483647 }, { status: 'ACTIVE' },
+      { number: 'SUB-fake' }, { next_billing_date: '2026-10-31' }, { payment_term_days: -1 }, { expiry_date: '2026-02-30' },
+      { expiry_date: '2026-10-30' }, { lines: [{ ...draftData.lines[0], unit_price: 1 }] }])
+      await request('/subscriptions', { method: 'POST', status: 400, body: { ...draftData, ...patch } });
+  });
+  await t.test('drafts snapshot variant prices and taxes and refresh them only when saved again', async () => {
+    const draft = await createDraft();
+    assert.match(draft.number, /^SUB-\d{5}$/);
+    assert.equal(draft.status, 'DRAFT');
+    assert.equal(draft.next_billing_date, null);
+    assert.equal(draft.lines[0].unit_price, 1760);
+    assert.equal(draft.lines[0].tax_id, tax.id);
+    assert.equal(draft.product_subtotal, 3520);
+    await pool.query('UPDATE products SET sales_price=1300 WHERE id=$1', [product.id]);
+    assert.equal((await request('/subscriptions/' + draft.id)).lines[0].unit_price, 1760);
+    const edited = await request('/subscriptions/' + draft.id, { method: 'PUT', body: draftData });
+    assert.equal(edited.lines[0].unit_price, 1860);
+    assert.equal(edited.number, draft.number);
+    await pool.query('UPDATE products SET sales_price=1200 WHERE id=$1', [product.id]);
+    await request('/subscriptions/' + draft.id, { method: 'PUT', body: { ...draftData, lines: [{ ...draftData.lines[0], variant_id: 2147483647 }] }, status: 400 });
+    assert.equal((await request('/subscriptions/' + draft.id)).lines[0].unit_price, 1860);
+    await request('/subscriptions/' + draft.id, { method: 'DELETE', status: 204 });
+    await request('/subscriptions/' + draft.id, { status: 404 });
+    assert.equal((await pool.query('SELECT * FROM subscription_lines WHERE subscription_id=$1', [draft.id])).rowCount, 0);
+  });
+  await t.test('discount eligibility uses start date and subtotal without consuming usage', async () => {
+    const body = { name: 'Team savings', scope: 'SUBSCRIPTION', type: 'PERCENTAGE', value: 10, min_quantity: 2,
+      min_purchase: 3600, start_date: '2026-10-31', end_date: '2027-10-31', usage_limit: 1 };
+    const discount = await request('/discounts', { role: 'ADMIN', method: 'POST', status: 201, body });
+    const draft = await createDraft({ discount_id: discount.id });
+    assert.equal(draft.discount_name, body.name);
+    assert.equal((await request('/discounts/' + discount.id)).used_count, 0);
+    await request('/subscriptions', { method: 'POST', status: 400, body: { ...draftData, discount_id: discount.id, start_date: '2026-10-30' } });
+    await pool.query('UPDATE discounts SET used_count=1 WHERE id=$1', [discount.id]);
+    await request('/subscriptions', { method: 'POST', status: 400, body: { ...draftData, discount_id: discount.id } });
+    const productDiscount = await request('/discounts', { role: 'ADMIN', method: 'POST', status: 201, body: {
+      name: 'Product only', scope: 'PRODUCT', type: 'FIXED', value: 5, product_ids: [product.id],
+    } });
+    await request('/subscriptions', { method: 'POST', status: 400, body: { ...draftData, discount_id: productDiscount.id } });
+  });
+  await t.test('draft creation enforces plan availability and bounded totals', async () => {
+    await pool.query("UPDATE plans SET start_date='2026-11-01' WHERE id=$1", [plan.id]);
+    await request('/subscriptions', { method: 'POST', status: 400, body: draftData });
+    await pool.query('UPDATE plans SET start_date=NULL WHERE id=$1', [plan.id]);
+    await pool.query('UPDATE products SET sales_price=99999999.99 WHERE id=$1', [product.id]);
+    await request('/subscriptions', { method: 'POST', status: 400, body: { ...draftData, lines: [{ ...draftData.lines[0], quantity: 10000 }] } });
+    await pool.query('UPDATE products SET sales_price=1200 WHERE id=$1', [product.id]);
+  });
+  await t.test('concurrent drafts have unique numbers and list filters stay bounded', async () => {
+    const created = await Promise.all(Array.from({ length: 6 }, () => createDraft()));
+    assert.equal(new Set(created.map(draft => draft.number)).size, 6);
+    const found = await request('/subscriptions?search=' + created[0].number + '&status=DRAFT&pageSize=1');
+    assert.equal(found.total, 1);
+    assert.equal(found.items[0].id, created[0].id);
+    assert.equal((await request('/subscriptions?customer_id=' + users.STAFF.id)).total, 0);
+    await request('/subscriptions?status=INVALID', { status: 400 });
+    await request('/subscriptions?pageSize=101', { status: 400 });
+    await pool.query("UPDATE subscriptions SET status='QUOTATION' WHERE id=$1", [created[0].id]);
+    await request('/subscriptions/' + created[0].id, { method: 'PUT', body: draftData, status: 409 });
+    await request('/subscriptions/' + created[0].id, { method: 'DELETE', status: 409 });
+  });
 });

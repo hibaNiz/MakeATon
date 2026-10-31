@@ -33,3 +33,25 @@ export async function selectedLines(client, lines, plan) {
     invalid('lines', `This plan requires at least ${plan.min_quantity} units in total`);
   return selected;
 }
+
+export function subtotalCents(lines, plan) {
+  const total = lines.reduce((sum, line) => sum + BigInt(Math.round(line.unit_price * 100)) * BigInt(line.quantity),
+    BigInt(Math.round(plan.price * 100)));
+  if (total > 999999999999n) invalid('lines', 'The subscription subtotal cannot exceed INR 9,999,999,999.99');
+  return total;
+}
+
+export async function selectedDiscount(client, id, lines, plan, startDate) {
+  const subtotal = subtotalCents(lines, plan);
+  if (!id) return;
+  const { rows: [discount] } = await client.query('SELECT * FROM discounts WHERE id=$1 FOR SHARE', [id]);
+  if (!discount?.active || discount.scope !== 'SUBSCRIPTION') invalid('discount_id', 'Choose an active subscription discount');
+  if ((discount.start_date && startDate < discount.start_date) || (discount.end_date && startDate > discount.end_date))
+    invalid('discount_id', 'Discount must be valid on the subscription start date');
+  if (discount.usage_limit != null && discount.used_count >= discount.usage_limit)
+    invalid('discount_id', 'Discount usage limit has been reached');
+  if (discount.min_quantity && lines.reduce((sum, line) => sum + line.quantity, 0) < discount.min_quantity)
+    invalid('discount_id', `Discount requires at least ${discount.min_quantity} units`);
+  if (discount.min_purchase && subtotal < BigInt(Math.round(discount.min_purchase * 100)))
+    invalid('discount_id', 'Subscription does not meet the discount minimum purchase');
+}
