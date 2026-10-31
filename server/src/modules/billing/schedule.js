@@ -17,14 +17,17 @@ export function billingWindow({ start_date, next_billing_date, expiry_date }, pe
     + Number(start.slice(5, 7)) - Number(start_date.slice(5, 7));
   const periods = { DAILY: elapsedDays, WEEKLY: Math.floor(elapsedDays / 7),
     MONTHLY: elapsedMonths, YEARLY: Math.floor(elapsedMonths / 12) };
-  if (!(period in periods)) throw new HttpError(409, 'Unknown billing period');
-  let count = periods[period];
-  let next = addPeriod(start_date, period, count);
-  if (next <= start) next = addPeriod(start_date, period, ++count);
+  if (!Object.hasOwn(periods, period)) throw new HttpError(409, 'Unknown billing period');
+  const count = periods[period];
+  const boundary = addPeriod(start_date, period, count);
+  const cycleStart = boundary > start ? addPeriod(start_date, period, count - 1) : boundary;
+  const next = boundary > start ? boundary : addPeriod(start_date, period, count + 1);
   if (!calendarDate(next) || next <= start) throw new HttpError(409, 'Billing date exceeds the supported calendar');
   const normalEnd = addDays(next, -1);
   const end = expiry_date && expiry_date < normalEnd ? expiry_date : normalEnd;
-  return { period_start: start, period_end: end, next_billing_date: next,
+  // A renewed partial period resumes the day after the last covered day, while
+  // its denominator and later boundaries still refer to the original cycle.
+  return { period_start: start, period_end: end, next_billing_date: addDays(end, 1),
     billable_days: dayNumber(end) - dayNumber(start) + 1,
-    period_days: dayNumber(next) - dayNumber(start) };
+    period_days: dayNumber(next) - dayNumber(cycleStart) };
 }

@@ -36,12 +36,21 @@ test('daily and weekly periods use UTC calendar days across year boundaries', ()
 
 test('partial final periods count expiry inclusively for daily proration', () => {
   assert.deepEqual(window('2025-01-31', '2025-02-28', 'MONTHLY', '2025-03-09'), {
-    period_start: '2025-02-28', period_end: '2025-03-09', next_billing_date: '2025-03-31',
+    period_start: '2025-02-28', period_end: '2025-03-09', next_billing_date: '2025-03-10',
     billable_days: 10, period_days: 31,
   });
   const singleDay = window('2025-01-01', '2025-01-01', 'MONTHLY', '2025-01-01');
   assert.equal(singleDay.billable_days, 1);
   assert.equal(singleDay.period_days, 31);
+});
+
+test('renewing a partial period covers the remainder using the original cycle length', () => {
+  assert.deepEqual(window('2025-01-31', '2025-03-10', 'MONTHLY', '2025-05-01'), {
+    period_start: '2025-03-10', period_end: '2025-03-30', next_billing_date: '2025-03-31',
+    billable_days: 21, period_days: 31,
+  });
+  const weekly = window('2025-01-01', '2025-01-04', 'WEEKLY', '2025-02-01');
+  assert.equal(weekly.billable_days, 4); assert.equal(weekly.period_days, 7);
 });
 
 test('invalid dates and unsupported calendar overflow fail before billing', () => {
