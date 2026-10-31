@@ -20,7 +20,7 @@ One app to run a subscription business: products and plans, quotations and subsc
 | Discounts (admin only): fixed/%, min purchase/qty, dates, usage limit | **Discounts** |
 | Payments by method, against the right invoice | **Payments**, or "Record payment" on an invoice |
 | Finance lead's view: active subs, revenue, owed, overdue | **Dashboard** |
-| Customers manage their own subscriptions | Customer **portal** (planned) |
+| Customers manage their own subscriptions | **My subscriptions**, **My invoices** and **Profile** in the customer portal |
 
 **How "never billed twice" works:** the database has a rule `UNIQUE (subscription_id, period_start)` on invoices, so the same period physically cannot be saved twice — even if two people press "Run billing" at the same moment.
 
@@ -29,6 +29,8 @@ One app to run a subscription business: products and plans, quotations and subsc
 **Payments:** staff record payments on a confirmed invoice or see them all on **Payments**. See [docs/module-4b-payments.md](docs/module-4b-payments.md).
 
 **Finance dashboard:** admin and staff can track collections, outstanding balances, active subscriptions and estimated monthly recurring revenue at `/dashboard`. Choose a 3-, 6- or 12-month window for billing and collection trends and payment-method charts; receivables aging and overdue invoice links show today's balances. Charts include exact amounts and an accessible monthly data table. Billed totals use invoice dates and collections use payment dates. Estimated MRR normalizes active subscription fees before discounts, tax and proration; metric definitions are available on the page.
+
+**Customer portal:** customers land at `/portal` after signing in. They can accept valid quotations, pause, resume, renew or close subscriptions when the plan permits, view and print issued invoices with payment history, and update their contact details. Drafts and internal notes stay private. Staff activate accepted quotations and record payments. Pausing preserves the pending billing date, so resuming can bill unbilled periods.
 
 **Demo data:** billing seeding only bills and records payments for its own marked demo subscriptions. after `npm run db:seed`, run `npm run db:seed:billing` (about 40 demo customers with invoices and payments) or `npm run db:seed:billing -- 1500` for a large set.
 
@@ -88,6 +90,8 @@ npm run dev          # open http://localhost:5173
 ### Tests
 
 Run `cd server && npm test` for unit tests. Set `TEST_DATABASE_URL` to a dedicated PostgreSQL database whose name ends in `_test` to include database integration tests. Each integration suite creates and removes its own schema.
+
+For browser end-to-end tests, set the same `TEST_DATABASE_URL`, run `npx playwright install chromium` once from `server`, then run `npm run test:e2e`. This builds the client and tests the customer journey against the real API in an isolated database schema.
 
 ---
 
