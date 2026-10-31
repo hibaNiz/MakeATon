@@ -1,6 +1,6 @@
 # Subscriptions
 
-Admin and staff can prepare quotations, record customer acceptance and manage subscriptions. This module ends before billing.
+Admin and staff can prepare quotations, record customer acceptance and manage subscriptions. Invoicing is in [module 4a](module-4a-billing.md).
 
 ## Walkthrough
 
@@ -82,11 +82,11 @@ Action bodies contain `action`, with `quotation_valid_until` optionally supplied
 
 Validation failures return 400 with field errors; invalid transitions return 409; missing records return 404. Deleting a draft or template returns 204. A successful action returns the updated subscription; expiry maintenance returns `{ "closed": 0 }` with the actual count.
 
-## Boundary for future billing work
+## Boundary with billing
 
 Activation sets `next_billing_date` to the subscription start date. Pause, resume and renewal preserve that pending date; closing clears it. These operations create no financial records.
 
-The next module still needs invoice creation, billing period calculations and scheduling, discount consumption, tax calculation, payment handling and customer self-service. The schema includes invoice/payment tables, but their presence does not mean those workflows exist. Future billing work must define how paused periods, live catalog terms and backdated activation affect charges.
+Billing (module 4) reads `next_billing_date` and advances it once per invoiced period. How paused periods, live catalog terms and backdated activation affect charges is defined in [module 4a](module-4a-billing.md). Customer self-service remains future work.
 
 ## Verification
 

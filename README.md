@@ -13,12 +13,13 @@ Manage customers, products, recurring plans, quotation templates and subscriptio
 | Quotation templates and subscription drafts | Implemented |
 | Quote, confirm acceptance, activate, pause, resume, renew and close | Implemented for admin and staff |
 | Close expired subscriptions | Manual operation; follows each plan's auto-close rule |
-| Billing engine, invoices and payments | Pending |
+| Billing engine and invoices (draft, confirm, send, cancel, print) | Implemented for admin and staff |
+| Recording payments (by method, against confirmed invoices) | Implemented for admin and staff; only admins remove a payment |
 | Finance dashboard and customer self-service portal | Pending |
 
-**Work currently stops before billing.** Subscription actions do not create invoices, record payments, send quotations or consume discount usage. Staff record acceptance obtained from the customer separately. Missing pages display a placeholder.
+**Billing is in.** Active subscriptions are invoiced automatically every hour (or with **Run billing**). Staff record payments against confirmed invoices. Subscription actions still do not send quotations; staff record acceptance obtained from the customer separately. The finance dashboard and customer portal are not built yet, and their pages display a placeholder.
 
-See [subscription behavior and API](docs/module-3-subscriptions.md) for lifecycle rules and the boundary for future billing work.
+See [subscription behavior and API](docs/module-3-subscriptions.md) for lifecycle rules and [billing](docs/module-4a-billing.md) and [payments](docs/module-4b-payments.md) for invoice and payment rules and the API.
 
 ## Run locally
 
@@ -51,6 +52,8 @@ npm run dev      # API on http://localhost:4000
 ```
 
 The catalog seed preserves existing records with matching names. It does not generate subscriptions, invoices or payments.
+
+Optional billing demo data (run `npm run db:seed` first): `npm run db:seed:billing` adds about 40 demo customers with active subscriptions, runs billing. `npm run db:seed:billing -- 1500` loads a larger set for speed checks. Demo customers log in as `demo.customerN@example.com` / `Customer@1234`.
 
 ### 3. Start the frontend
 
@@ -89,7 +92,7 @@ cd server
 npm test
 ```
 
-Without `TEST_DATABASE_URL`, database integration suites are skipped. The suite covers authentication and session expiry, catalog permissions and validation, subscription price snapshots, lifecycle rules, concurrent actions, and expiry maintenance. It also checks that subscription operations leave invoice and payment tables empty. Billing itself is not implemented or tested.
+Without `TEST_DATABASE_URL`, database integration suites are skipped. The suite covers authentication and session expiry, catalog permissions and validation, subscription price snapshots, lifecycle rules, concurrent actions, and expiry maintenance. Billing has its own suites: invoice maths (discounts, tax after discount, rounding, allocation) and an API suite covering permissions, validation, no double billing under parallel requests, catch-up of missed periods, overdue rules and discount usage restore. Payments add tests for validation, partial and full payment, overpayment races and admin-only removal.
 
 Check the frontend production build:
 

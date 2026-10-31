@@ -1,6 +1,6 @@
 # Who builds what
 
-**Current status:** foundation, catalog, quotation templates and subscription lifecycles are implemented. Billing, invoices, payments, the dashboard and the customer portal remain planned. See [README](../README.md) and [subscription notes](module-3-subscriptions.md). The ownership and demo below describe the full intended project.
+**Current status:** foundation, catalog, quotation templates and subscription lifecycles are implemented. Billing and invoices are implemented ([module 4a](module-4a-billing.md)); payments are implemented ([module 4b](module-4b-payments.md)). The dashboard and the customer portal remain planned. See [README](../README.md) and [subscription notes](module-3-subscriptions.md). The ownership and demo below describe the full intended project.
 
 The app is split into **4 modules**. Each person owns one, commits it from **their own laptop**, and can explain it to the judges. Modules only *add* files — nobody edits anyone else's files — so there are no git conflicts.
 
