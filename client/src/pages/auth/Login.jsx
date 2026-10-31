@@ -33,7 +33,7 @@ export default function Login() {
     try {
       const res = await api('/auth/login', { method: 'POST', body: form });
       signIn(res);
-      navigate(res.user.role === 'CUSTOMER' ? '/portal' : '/dashboard');
+      navigate('/');
     } catch (err) {
       setError(err.message);
     } finally {
