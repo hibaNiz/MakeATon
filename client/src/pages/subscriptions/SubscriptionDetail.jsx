@@ -5,6 +5,7 @@ import { useApi } from '../../lib/hooks';
 import { date, money, PERIOD_LABEL } from '../../lib/format';
 import { LoadState } from './Fields';
 import { ActionButtons, ActionDialog, subscriptionNotice } from './Actions';
+import SubscriptionInvoices from '../billing/SubscriptionInvoices';
 
 function Details({ id }) {
   const state = useApi('/subscriptions/' + id), record = state.data;
@@ -54,6 +55,7 @@ function Details({ id }) {
         <div className="subscription-subtotal"><span>Product subtotal</span><strong>{money(record.product_subtotal)}</strong></div>
         <p className="muted">Before plan fees, discounts and tax. Product prices were captured when this draft was saved.</p>
       </Card>
+      <SubscriptionInvoices subscription={record} onBilled={state.reload} />
       {record.notes && <Card title="Notes"><p className="subscription-notes">{record.notes}</p></Card>}
       {action && <ActionDialog action={action} record={record} onClose={() => setAction(null)} onSaved={saved} onReload={() => { setAction(null); state.reload(); }} />}
     </>}
