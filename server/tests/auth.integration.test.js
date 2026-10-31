@@ -97,6 +97,25 @@ test('Account sessions and password resets with PostgreSQL', { skip: !process.en
     assert.equal((await request('/auth/me', { token })).status, 401);
   });
 
+  await t.test('resetting a password expires all earlier sessions, even when the password is reused', async () => {
+    const account = await user('STAFF'), other = await user('STAFF');
+    const oldSessions = [signToken(account), signToken(account)];
+    const otherSession = signToken(other);
+    const resetToken = randomUUID();
+    await pool.query("UPDATE users SET reset_token_hash=$1,reset_token_expiry=now()+interval '30 minutes' WHERE id=$2", [tokenHash(resetToken), account.id]);
+    for (const token of oldSessions) assert.equal((await request('/products', { token })).status, 200);
+    assert.equal((await request('/auth/reset-password', { body: { token: resetToken, password: 'Original@123' } })).status, 200);
+    for (const token of oldSessions) {
+      assert.equal((await request('/products', { token })).status, 401);
+      assert.equal((await request('/auth/me', { token })).status, 401);
+    }
+    assert.equal((await request('/products', { token: otherSession })).status, 200);
+    const login = await request('/auth/login', { body: { email: account.email, password: 'Original@123' } });
+    assert.equal(login.status, 200);
+    const { token } = await login.json();
+    assert.equal((await request('/products', { token })).status, 200);
+  });
+
   await t.test('permissions use the current account role, not stale token claims', async () => {
     const account = await user('ADMIN'), token = signToken(account);
     await pool.query("UPDATE users SET role='CUSTOMER' WHERE id=$1", [account.id]);
