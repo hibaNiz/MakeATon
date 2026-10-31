@@ -168,6 +168,8 @@ CREATE TABLE invoices (
   due_date        DATE NOT NULL,
   period_start    DATE NOT NULL,
   period_end      DATE NOT NULL,
+  billable_days   INT NOT NULL DEFAULT 1 CHECK (billable_days > 0),
+  period_days     INT NOT NULL DEFAULT 1 CHECK (period_days >= billable_days),
   subtotal        NUMERIC(12,2) NOT NULL,
   discount_total  NUMERIC(12,2) NOT NULL DEFAULT 0,
   tax_total       NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -193,7 +195,7 @@ CREATE TABLE invoice_lines (
   discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   tax_rate        NUMERIC(5,2) NOT NULL DEFAULT 0,
   tax_amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
-  amount          NUMERIC(12,2) NOT NULL           -- qty*unit_price - discount + tax
+  amount          NUMERIC(12,2) NOT NULL           -- round(qty*unit_price*billable_days/period_days) - discount + tax
 );
 CREATE INDEX idx_invlines_inv ON invoice_lines(invoice_id);
 

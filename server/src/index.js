@@ -2,8 +2,10 @@
 import 'dotenv/config';
 import fs from 'fs';
 import { createApp } from './app.js';
+import { migrate } from '../db/migrate.js';
 
 const port = process.env.PORT || 4000;
+await migrate();
 const app = await createApp();
 app.listen(port, () => console.log(`✅ Brightloop API running on http://localhost:${port}`));
 
