@@ -1,5 +1,7 @@
 # Who builds what
 
+**Current status:** foundation, catalog, quotation templates and subscription lifecycles are implemented. Billing, invoices, payments, the dashboard and the customer portal remain planned. See [README](../README.md) and [subscription notes](module-3-subscriptions.md). The ownership and demo below describe the full intended project.
+
 The app is split into **4 modules**. Each person owns one, commits it from **their own laptop**, and can explain it to the judges. Modules only *add* files — nobody edits anyone else's files — so there are no git conflicts.
 
 | # | Module | Owner | Git level | What's in it |
@@ -31,7 +33,9 @@ The app works at every stage: missing pages just say "This page isn't here yet".
 
 Read your module's notes in `docs/` — they explain how your part works in plain words and list the questions judges are likely to ask. Open your files and follow along once; make one small change of your own (a label, a validation message) and commit it, so you've touched the code yourself.
 
-## Demo script (5 minutes)
+## Planned demo script (after all four modules)
+
+The current subscription demo ends after staff record customer acceptance and activate the subscription. Quotation sharing is separate; portal acceptance and the billing steps below are future work. Performance figures must be measured once those modules exist.
 
 1. **Admin** → Products: show *Brightloop CRM* with the *Odoo* variant (+₹560). Plans: show the rules (auto-close, pause, renew).
 2. Discounts: show "Bulk seats 10% off CRM" (min 10 qty) — only the admin sees the *New discount* button; log in as staff to prove it.
