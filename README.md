@@ -24,6 +24,12 @@ One app to run a subscription business: products and plans, quotations and subsc
 
 **How "never billed twice" works:** the database has a rule `UNIQUE (subscription_id, period_start)` on invoices, so the same period physically cannot be saved twice — even if two people press "Run billing" at the same moment.
 
+**Invoice screens:** the billing engine (`/api/billing/run`) creates invoices; the **Invoices** pages list them and let staff confirm, email, print or cancel them. See [docs/module-4a-invoices.md](docs/module-4a-invoices.md).
+
+**Payments:** staff record payments on a confirmed invoice or see them all on **Payments**. See [docs/module-4b-payments.md](docs/module-4b-payments.md).
+
+**Demo data:** after `npm run db:seed`, run `npm run db:seed:billing` (about 40 demo customers with invoices and payments) or `npm run db:seed:billing -- 1500` for a large set.
+
 **Speed:** with 2,000 subscriptions and ~9,000 invoices loaded, every page answers in well under 2 seconds (the dashboard in ~50 ms). Lists are paginated and the columns we filter on are indexed.
 
 ---
