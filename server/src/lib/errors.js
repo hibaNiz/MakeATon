@@ -16,7 +16,7 @@ export function errorHandler(err, req, res, _next) {
   if (err.name === 'ZodError') {
     return res.status(400).json({
       error: 'Please fix the highlighted fields',
-      fields: Object.fromEntries(err.errors.map((e) => [e.path.join('.') || 'form', e.message])),
+      fields: Object.fromEntries(err.issues.map((e) => [e.path.join('.') || 'form', e.message])),
     });
   }
   // Postgres unique violation (e.g. duplicate email)

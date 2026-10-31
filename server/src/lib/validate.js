@@ -10,7 +10,7 @@ export const password = z
   .regex(/[^A-Za-z0-9]/, 'Password needs a special character');
 
 export const email = z.string().trim().toLowerCase().email('Enter a valid email address');
-export const money = z.coerce.number({ invalid_type_error: 'Must be a number' }).min(0, 'Cannot be negative').max(99999999, 'Too large');
+export const money = z.coerce.number({ error: 'Must be a number' }).min(0, 'Cannot be negative').max(99999999, 'Too large');
 export const id = z.coerce.number().int().positive();
 export const optionalId = z.preprocess((v) => (v === '' || v === null || v === undefined ? null : v), z.coerce.number().int().positive().nullable());
 // 'YYYY-MM-DD' date, empty -> null

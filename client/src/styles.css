@@ -60,7 +60,8 @@ a:hover { text-decoration: underline; }
 .sidebar-foot { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 13px; }
 .sidebar-foot .who { color: #fff; font-weight: 600; }
 .role-pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.1); margin-top: 2px; }
-.content { padding: 28px 32px 60px; max-width: 1240px; width: 100%; }
+.content { padding: 28px 32px 60px; max-width: 1240px; width: 100%; min-width: 0; }
+.menu-close { align-self: flex-end; color: #fff; }
 .topbar { display: none; }
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; }
@@ -69,6 +70,10 @@ a:hover { text-decoration: underline; }
   .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--ink); color: #fff; position: sticky; top: 0; z-index: 30; }
   .content { padding: 20px 16px 60px; }
   .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); z-index: 35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
 .page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -167,7 +172,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .steps li.current .dot { background: var(--primary); color: #fff; }
 
 /* ---------- Modal & toasts ---------- */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(24, 35, 31, 0.4); display: grid; place-items: center; z-index: 100; padding: 16px; }
+.modal-backdrop { position: fixed; inset: 0; background: transparent; display: grid; place-items: center; z-index: 100; padding: 16px; border: 0; margin: 0; width: 100%; height: 100%; max-width: none; max-height: none; color: var(--ink); }
+.modal-backdrop::backdrop { background: rgba(24, 35, 31, 0.4); }
 .modal { background: var(--surface); border-radius: 12px; width: min(520px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
 .modal-wide { width: min(860px, 100%); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }

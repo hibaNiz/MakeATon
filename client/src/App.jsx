@@ -15,7 +15,7 @@ const exists = (path) => pages.some((p) => p.path === path);
 // Customers land on their portal, the team on the dashboard (or a placeholder until that module is added)
 const homeFor = (user) => {
   const target = user.role === 'CUSTOMER' ? '/portal' : '/dashboard';
-  return exists(target) ? target : '/welcome';
+  return exists(target) ? target : user.role !== 'CUSTOMER' && exists('/products') ? '/products' : '/welcome';
 };
 
 // Shown for links whose module hasn't been added to the repo yet

@@ -11,6 +11,6 @@ export default [
   { path: '/signup', element: <Signup />, public: true },
   { path: '/forgot-password', element: <ForgotPassword />, public: true },
   { path: '/reset-password', element: <ResetPassword />, public: true },
-  { path: '/customers', element: <People role="CUSTOMER" />, roles: ['ADMIN', 'STAFF'] },
-  { path: '/staff', element: <People role="STAFF" />, roles: ['ADMIN'] },
+  { path: '/customers', element: <People key="customers" role="CUSTOMER" />, roles: ['ADMIN', 'STAFF'] },
+  { path: '/staff', element: <People key="staff" role="STAFF" />, roles: ['ADMIN'] },
 ];

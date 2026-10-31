@@ -80,10 +80,12 @@ router.post('/reset-password', asyncRoute(async (req, res) => {
   );
   if (!rows.length) throw new HttpError(400, 'This reset link is invalid or has expired');
   const newHash = await bcrypt.hash(data.password, 10);
-  await query(
-    'UPDATE users SET password_hash = $1, reset_token_hash = NULL, reset_token_expiry = NULL WHERE id = $2',
-    [newHash, rows[0].id]
+  const updated = await query(
+    `UPDATE users SET password_hash = $1, reset_token_hash = NULL, reset_token_expiry = NULL
+     WHERE id = $2 AND reset_token_hash = $3 AND reset_token_expiry > now() RETURNING id`,
+    [newHash, rows[0].id, hash]
   );
+  if (!updated.rowCount) throw new HttpError(400, 'This reset link is invalid or has expired');
   res.json({ message: 'Password updated. You can log in now.' });
 }));
 
