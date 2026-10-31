@@ -1,0 +1,13 @@
+.billing-summary { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0 0 12px; color: var(--muted); }
+.billing-summary strong { color: var(--text, inherit); }
+.billing-totals { margin-left: auto; max-width: 340px; }
+.billing-totals > div { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; }
+.billing-totals .grand { border-top: 1px solid var(--line); font-size: 1.1rem; font-weight: 700; }
+.billing-result { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin: 12px 0; }
+.billing-result > div { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.billing-result strong { display: block; font-size: 1.4rem; }
+.payment-row-actions { display: flex; gap: 8px; }
+@media print {
+  .sidebar, .topbar, .app-sidebar, nav, .subscription-back, .no-print, .page-header .btn, .btn { display: none !important; }
+  .catalog .card { box-shadow: none; border: 0; }
+}
