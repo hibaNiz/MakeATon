@@ -19,7 +19,7 @@ One app to run a subscription business: products and plans, quotations and subsc
 | Taxes calculated automatically | **Taxes** (each product has a default tax) |
 | Discounts (admin only): fixed/%, min purchase/qty, dates, usage limit | **Discounts** |
 | Payments by method, against the right invoice | **Payments**, or "Record payment" on an invoice |
-| Finance lead's view: active subs, revenue, owed, overdue | **Dashboard** (planned) |
+| Finance lead's view: active subs, revenue, owed, overdue | **Dashboard** |
 | Customers manage their own subscriptions | Customer **portal** (planned) |
 
 **How "never billed twice" works:** the database has a rule `UNIQUE (subscription_id, period_start)` on invoices, so the same period physically cannot be saved twice — even if two people press "Run billing" at the same moment.
@@ -27,6 +27,8 @@ One app to run a subscription business: products and plans, quotations and subsc
 **Invoice screens:** the billing engine (`/api/billing/run`) creates invoices; the **Invoices** pages list them and let staff confirm, email, print or cancel them. See [docs/module-4a-billing.md](docs/module-4a-billing.md).
 
 **Payments:** staff record payments on a confirmed invoice or see them all on **Payments**. See [docs/module-4b-payments.md](docs/module-4b-payments.md).
+
+**Finance dashboard:** admin and staff can track collections, outstanding balances, active subscriptions and estimated monthly recurring revenue at `/dashboard`. Choose a 3-, 6- or 12-month window for billing and collection trends and payment-method charts; receivables aging and overdue invoice links show today's balances. Charts include exact amounts and an accessible monthly data table. Billed totals use invoice dates and collections use payment dates. Estimated MRR normalizes active subscription fees before discounts, tax and proration; metric definitions are available on the page.
 
 **Demo data:** billing seeding only bills and records payments for its own marked demo subscriptions. after `npm run db:seed`, run `npm run db:seed:billing` (about 40 demo customers with invoices and payments) or `npm run db:seed:billing -- 1500` for a large set.
 
