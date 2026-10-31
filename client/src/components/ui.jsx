@@ -1,10 +1,10 @@
 // Small reusable building blocks, so every page looks and behaves the same.
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { title } from '../lib/format';
 
 export function Button({ variant = 'primary', size, loading, children, className = '', ...props }) {
   return (
-    <button className={`btn btn-${variant} ${size === 'sm' ? 'btn-sm' : ''} ${className}`} disabled={loading || props.disabled} {...props}>
+    <button className={`btn btn-${variant} ${size === 'sm' ? 'btn-sm' : ''} ${className}`} {...props} disabled={loading || props.disabled}>
       {loading && <span className="spinner" />}
       {children}
     </button>
@@ -78,16 +78,38 @@ export function PageHeader({ title: heading, subtitle, actions }) {
 }
 
 export function Modal({ open, onClose, title: heading, children, footer, wide }) {
+  const ref = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    const dialog = ref.current;
+    const previous = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      document.body.style.overflow = overflow;
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [open]);
+  function keepFocus(event) {
+    if (event.key !== 'Tab') return;
+    const controls = [...ref.current.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')]
+      .filter(el => el.tabIndex >= 0 && !el.matches(':disabled') && el.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (!first) { event.preventDefault(); ref.current.focus(); return; }
+    if (event.shiftKey && (document.activeElement === first || !controls.includes(document.activeElement))) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !controls.includes(document.activeElement))) {
+      event.preventDefault(); first.focus();
+    }
+  }
   if (!open) return null;
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-label={heading}>
+    <dialog ref={ref} className="modal-backdrop" aria-label={heading} onKeyDown={keepFocus}
+      onCancel={event => { event.preventDefault(); onClose(); }}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={`modal ${wide ? 'modal-wide' : ''}`}>
         <header className="modal-head">
           <h3>{heading}</h3>
           <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
@@ -95,7 +117,7 @@ export function Modal({ open, onClose, title: heading, children, footer, wide })
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-foot">{footer}</footer>}
       </div>
-    </div>
+    </dialog>
   );
 }
 
