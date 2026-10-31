@@ -15,28 +15,27 @@ One app to run a subscription business: products and plans, quotations and subsc
 | Plans: price, daily/weekly/monthly/yearly, min qty, dates, auto-close / pause / renew rules | **Plans** |
 | Quotation templates → subscription | **Quotation templates** → "Use for a new quotation" |
 | Draft → Quotation → Confirmed → Active → Closed | **Subscriptions** → open one → status buttons |
-| Billing day: hundreds of invoices, never twice, never skipped | **Invoices** → "Run billing now" (also runs by itself every hour) |
+| Billing day: hundreds of invoices, never twice, never skipped | **Invoices** → "Run billing" (scheduled interval is configurable) |
 | Taxes calculated automatically | **Taxes** (each product has a default tax) |
 | Discounts (admin only): fixed/%, min purchase/qty, dates, usage limit | **Discounts** |
 | Payments by method, against the right invoice | **Payments**, or "Record payment" on an invoice |
-| Finance lead's view: active subs, revenue, owed, overdue | **Dashboard** |
-| Customers manage their own subscriptions | Customer **portal** (log in as a customer) |
+| Finance lead's view: active subs, revenue, owed, overdue | **Dashboard** (planned) |
+| Customers manage their own subscriptions | Customer **portal** (planned) |
 
 **How "never billed twice" works:** the database has a rule `UNIQUE (subscription_id, period_start)` on invoices, so the same period physically cannot be saved twice — even if two people press "Run billing" at the same moment.
 
-**Invoice screens:** the billing engine (`/api/billing/run`) creates invoices; the **Invoices** pages list them and let staff confirm, email, print or cancel them. See [docs/module-4a-invoices.md](docs/module-4a-invoices.md).
+**Invoice screens:** the billing engine (`/api/billing/run`) creates invoices; the **Invoices** pages list them and let staff confirm, email, print or cancel them. See [docs/module-4a-billing.md](docs/module-4a-billing.md).
 
 **Payments:** staff record payments on a confirmed invoice or see them all on **Payments**. See [docs/module-4b-payments.md](docs/module-4b-payments.md).
 
-**Demo data:** after `npm run db:seed`, run `npm run db:seed:billing` (about 40 demo customers with invoices and payments) or `npm run db:seed:billing -- 1500` for a large set.
+**Demo data:** billing seeding only bills and records payments for its own marked demo subscriptions. after `npm run db:seed`, run `npm run db:seed:billing` (about 40 demo customers with invoices and payments) or `npm run db:seed:billing -- 1500` for a large set.
 
-**Speed:** with 2,000 subscriptions and ~9,000 invoices loaded, every page answers in well under 2 seconds (the dashboard in ~50 ms). Lists are paginated and the columns we filter on are indexed.
 
 ---
 
 ## Run it on your laptop
 
-You need **Node.js 18+** and **PostgreSQL 14+** installed.
+You need **Node.js 20+** and **PostgreSQL 14+** installed.
 
 > Windows: install PostgreSQL from postgresql.org (remember the password you set for the `postgres` user).
 > Mac: `brew install postgresql@16 && brew services start postgresql@16`
@@ -62,7 +61,7 @@ Open `server/.env` and put your PostgreSQL password into `DATABASE_URL`, e.g.
 
 ```bash
 npm run db:setup     # creates all tables + the admin login
-npm run db:seed      # optional: loads demo data (2,000 subscriptions, about 30 seconds)
+npm run db:seed      # optional: loads catalog demo data
 npm run dev          # API on http://localhost:4000
 ```
 
@@ -86,7 +85,7 @@ npm run dev          # open http://localhost:5173
 
 ### Tests
 
-With the backend running on a seeded database: `cd server && npm test` — checks password rules, roles, the subscription life-cycle, discount + tax maths, no double billing, payments, portal privacy and dashboard speed.
+Run `cd server && npm test` for unit tests. Set `TEST_DATABASE_URL` to a dedicated PostgreSQL database whose name ends in `_test` to include database integration tests. Each integration suite creates and removes its own schema.
 
 ---
 
@@ -95,7 +94,7 @@ With the backend running on a seeded database: `cd server && npm test` — check
 ```
 server/
   db/schema.sql            every table, in plain SQL
-  db/setup.js, seed.js     create tables / load demo data
+  db/setup.js, seed-catalog.js, seed-billing.js     create tables / load demo data
   src/lib/                 shared helpers (database, login, validation, dates)
   src/modules/<module>/    one folder per feature — *.routes.js files are picked up automatically
 client/

@@ -1,6 +1,6 @@
 # Module 4b: Payments
 
-Admin and staff record payments against confirmed invoices (built on [module 4a](module-4a-invoices.md)). Merge [4a (invoices)](module-4a-invoices.md) first.
+Admin and staff record payments against confirmed invoices (built on [module 4a](module-4a-billing.md)).
 
 ## Rules
 

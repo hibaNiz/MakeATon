@@ -4,11 +4,13 @@ import { query, transaction } from '../../lib/db.js';
 import { HttpError } from '../../lib/errors.js';
 import { today } from '../../lib/dates.js';
 import { lockInvoice } from '../invoices/invoices.service.js';
+import { paymentSchema, paymentFilters, recordId } from './validation.js';
 
 const cents = value => Math.round(Number(value) * 100);
 const escapeLike = text => '%' + text.replace(/[\\%_]/g, '\\$&') + '%';
 
-export async function listPayments(f) {
+export async function listPayments(filters = {}) {
+  const f = paymentFilters.parse(filters);
   const params = [];
   const where = [];
   if (f.search) {
@@ -34,6 +36,8 @@ export async function listPayments(f) {
 }
 
 export async function recordPayment(data, userId) {
+  data = paymentSchema.parse(data);
+  userId = recordId.parse(userId);
   return transaction(async client => {
     const invoice = await lockInvoice(client, data.invoice_id);
     const fail = (field, message) => { throw new HttpError(400, 'Please fix the highlighted fields', { [field]: message }); };
@@ -53,6 +57,7 @@ export async function recordPayment(data, userId) {
 
 // Admin-only: removes a mistaken payment and reopens the invoice if it had become PAID.
 export async function deletePayment(id) {
+  id = recordId.parse(id);
   await transaction(async client => {
     const { rows: [found] } = await client.query('SELECT invoice_id FROM payments WHERE id=$1', [id]);
     if (!found) throw new HttpError(404, 'Payment not found');
