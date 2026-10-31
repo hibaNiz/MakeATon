@@ -162,4 +162,107 @@ test('Subscriptions HTTP API with PostgreSQL', { skip: !process.env.TEST_DATABAS
     await request('/subscriptions/' + created[0].id, { method: 'PUT', body: draftData, status: 409 });
     await request('/subscriptions/' + created[0].id, { method: 'DELETE', status: 409 });
   });
+
+  const { today, addDays } = await import('../src/lib/dates.js');
+  const currentDate = today();
+  const futureDate = addDays(currentDate, 365);
+  const action = (id, action, extra = {}, status = 200) => request(`/subscriptions/${id}/actions`, { method: 'POST', body: { action, ...extra }, status });
+  async function activeDraft() {
+    const draft = await createDraft({ start_date: currentDate, expiry_date: futureDate });
+    await action(draft.id, 'quote');
+    await action(draft.id, 'confirm');
+    return action(draft.id, 'activate');
+  }
+  await t.test('lifecycle follows legal transitions and preserves quoted prices', async () => {
+    const draft = await createDraft({ start_date: currentDate, expiry_date: futureDate });
+    await action(draft.id, 'activate', {}, 409);
+    await request(`/subscriptions/${draft.id}/actions`, { method: 'POST', body: { action: 'quote' }, role: 'CUSTOMER', status: 403 });
+    const quoted = await action(draft.id, 'quote');
+    assert.equal(quoted.status, 'QUOTATION');
+    assert.equal(quoted.quotation_valid_until, addDays(currentDate, 30));
+    await action(draft.id, 'quote', {}, 409);
+    await action(draft.id, 'activate', { status: 'ACTIVE' }, 400);
+    await pool.query('UPDATE products SET sales_price=1500 WHERE id=$1', [product.id]);
+    await action(draft.id, 'confirm');
+    const active = await action(draft.id, 'activate');
+    assert.equal(active.status, 'ACTIVE');
+    assert.equal(active.lines[0].unit_price, 1760);
+    assert.equal(active.next_billing_date, currentDate);
+    const paused = await action(draft.id, 'pause');
+    assert.equal(paused.status, 'PAUSED');
+    assert.equal(paused.next_billing_date, currentDate);
+    assert.equal((await action(draft.id, 'resume')).next_billing_date, currentDate);
+    const closed = await action(draft.id, 'close');
+    assert.equal(closed.status, 'CLOSED');
+    assert.equal(closed.next_billing_date, null);
+    await action(draft.id, 'resume', {}, 409);
+    await action(draft.id, 'renew', { expiry_date: addDays(futureDate, 1) }, 409);
+    await pool.query('UPDATE products SET sales_price=1200 WHERE id=$1', [product.id]);
+  });
+  await t.test('quotation expiry is inclusive and expired quotations can be revised', async () => {
+    const draft = await createDraft({ start_date: currentDate, expiry_date: futureDate });
+    await action(draft.id, 'quote', { quotation_valid_until: addDays(currentDate, -1) }, 400);
+    await action(draft.id, 'quote', { quotation_valid_until: addDays(futureDate, 1) }, 400);
+    await action(draft.id, 'quote', { quotation_valid_until: currentDate });
+    await pool.query('UPDATE subscriptions SET quotation_valid_until=$1 WHERE id=$2', [addDays(currentDate, -1), draft.id]);
+    await action(draft.id, 'confirm', {}, 409);
+    const revised = await action(draft.id, 'revise');
+    assert.equal(revised.status, 'DRAFT');
+    assert.equal(revised.quotation_valid_until, null);
+    await action(draft.id, 'quote', { quotation_valid_until: currentDate });
+    assert.equal((await action(draft.id, 'confirm')).status, 'CONFIRMED');
+  });
+  await t.test('activation rechecks catalog eligibility and expiry without changing state on failure', async () => {
+    const draft = await createDraft({ start_date: currentDate, expiry_date: futureDate });
+    await action(draft.id, 'quote'); await action(draft.id, 'confirm');
+    await pool.query('UPDATE products SET active=false WHERE id=$1', [product.id]);
+    await action(draft.id, 'activate', {}, 400);
+    assert.equal((await request('/subscriptions/' + draft.id)).status, 'CONFIRMED');
+    await pool.query('UPDATE products SET active=true WHERE id=$1', [product.id]);
+    await pool.query('UPDATE subscriptions SET expiry_date=$1 WHERE id=$2', [addDays(currentDate, -1), draft.id]);
+    await action(draft.id, 'activate', {}, 400);
+  });
+  await t.test('plan rules govern pause, early closure and renewal', async () => {
+    const active = await activeDraft();
+    await pool.query('UPDATE plans SET pausable=false,closable=false,renewable=false WHERE id=$1', [plan.id]);
+    await action(active.id, 'pause', {}, 409);
+    await action(active.id, 'close', {}, 409);
+    await action(active.id, 'renew', { expiry_date: addDays(futureDate, 1) }, 409);
+    await pool.query('UPDATE plans SET pausable=true,renewable=true WHERE id=$1', [plan.id]);
+    await action(active.id, 'renew', { expiry_date: futureDate }, 400);
+    const renewed = await action(active.id, 'renew', { expiry_date: addDays(futureDate, 365) });
+    assert.equal(renewed.expiry_date, addDays(futureDate, 365));
+    assert.equal(renewed.next_billing_date, active.next_billing_date);
+    await pool.query('UPDATE subscriptions SET expiry_date=$1 WHERE id=$2', [addDays(currentDate, -1), active.id]);
+    await action(active.id, 'pause', {}, 409);
+    assert.equal((await action(active.id, 'close')).status, 'CLOSED');
+    await pool.query('UPDATE plans SET closable=true WHERE id=$1', [plan.id]);
+  });
+  await t.test('concurrent activation and renewal apply each change only once', async () => {
+    const draft = await createDraft({ start_date: currentDate, expiry_date: futureDate });
+    await action(draft.id, 'quote'); await action(draft.id, 'confirm');
+    async function race(body) {
+      return Promise.all([1, 2].map(() => fetch(base + `/subscriptions/${draft.id}/actions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tokens.STAFF }, body: JSON.stringify(body),
+      }).then(response => response.status)));
+    }
+    assert.deepEqual((await race({ action: 'activate' })).sort(), [200, 409]);
+    assert.deepEqual((await race({ action: 'renew', expiry_date: addDays(futureDate, 365) })).sort(), [200, 400]);
+  });
+  await t.test('expiry maintenance is repeatable, honors plan rules and never creates billing records', async () => {
+    const expired = await activeDraft(), inclusive = await activeDraft(), paused = await activeDraft();
+    await action(paused.id, 'pause');
+    await pool.query('UPDATE subscriptions SET expiry_date=$1 WHERE id=ANY($2::int[])', [addDays(currentDate, -1), [expired.id, paused.id]]);
+    await pool.query('UPDATE subscriptions SET expiry_date=$1 WHERE id=$2', [currentDate, inclusive.id]);
+    await pool.query('UPDATE plans SET auto_close=false WHERE id=$1', [plan.id]);
+    assert.equal((await request('/subscriptions/close-expired', { method: 'POST' })).closed, 0);
+    await pool.query('UPDATE plans SET auto_close=true WHERE id=$1', [plan.id]);
+    assert.equal((await request('/subscriptions/close-expired', { method: 'POST' })).closed, 2);
+    assert.equal((await request('/subscriptions/close-expired', { method: 'POST' })).closed, 0);
+    assert.equal((await request('/subscriptions/' + inclusive.id)).status, 'ACTIVE');
+    assert.equal((await request('/subscriptions/' + expired.id)).next_billing_date, null);
+    await request('/subscriptions/close-expired', { method: 'POST', role: 'CUSTOMER', status: 403 });
+    for (const table of ['invoices', 'invoice_lines', 'payments'])
+      assert.equal((await pool.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n, 0);
+  });
 });
