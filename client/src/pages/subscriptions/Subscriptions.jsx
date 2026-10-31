@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Badge, Card, Empty, PageHeader, Pagination } from '../../components/ui';
+import { Badge, Button, Card, Empty, PageHeader, Pagination, useToast } from '../../components/ui';
 import { qs } from '../../lib/api';
 import { useApi, useDebounced } from '../../lib/hooks';
 import { date, title } from '../../lib/format';
 import { Control, LoadState } from './Fields';
+import { CloseExpiredDialog } from './Actions';
 
 export default function Subscriptions() {
   const [search, setSearch] = useState(''), [status, setStatus] = useState(''), [page, setPage] = useState(1);
   const delayed = useDebounced(search);
+  const [closing, setClosing] = useState(false), toast = useToast();
   const state = useApi('/subscriptions' + qs({ search: delayed, status, page, pageSize: 12 }));
   return <div className="catalog subscriptions">
     <p className="catalog-eyebrow">SUBSCRIPTIONS</p>
-    <PageHeader title="Subscriptions" subtitle="Prepare quotations and follow each customer’s subscription." actions={<><Link className="btn btn-secondary" to="/templates">Quotation templates</Link><Link className="btn btn-primary" to="/subscriptions/new">New subscription</Link></>} />
+    <PageHeader title="Subscriptions" subtitle="Prepare quotations and follow each customer’s subscription." actions={<><Button variant="ghost" onClick={() => setClosing(true)}>Close expired</Button><Link className="btn btn-secondary" to="/templates">Quotation templates</Link><Link className="btn btn-primary" to="/subscriptions/new">New subscription</Link></>} />
     <Card>
       <div className="catalog-filters">
         <Control name="subscription-search" label="Search subscriptions" type="search" maxLength={200} value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder="Number, customer name or email" />
@@ -30,5 +32,6 @@ export default function Subscriptions() {
         <Pagination page={page} pageSize={12} total={state.data.total} onPage={setPage} />
       </>}
     </Card>
+    {closing && <CloseExpiredDialog onClose={() => setClosing(false)} onSaved={message => { setClosing(false); toast(message); state.reload(); }} />}
   </div>;
 }

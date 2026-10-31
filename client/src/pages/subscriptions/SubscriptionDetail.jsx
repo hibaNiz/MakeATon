@@ -1,17 +1,34 @@
-import { Link, useParams } from 'react-router-dom';
-import { Badge, Card, PageHeader, StatusSteps } from '../../components/ui';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Badge, Card, PageHeader, StatusSteps, useToast } from '../../components/ui';
 import { useApi } from '../../lib/hooks';
 import { date, money, PERIOD_LABEL } from '../../lib/format';
 import { LoadState } from './Fields';
+import { ActionButtons, ActionDialog, subscriptionNotice } from './Actions';
 
 function Details({ id }) {
   const state = useApi('/subscriptions/' + id), record = state.data;
+  const notice = record && subscriptionNotice(record);
+  const [action, setAction] = useState(null), toast = useToast(), navigate = useNavigate();
+  function saved(result, message) {
+    setAction(null); toast(message);
+    if (result) state.setData(result); else navigate('/subscriptions', { replace: true });
+  }
   return <div className="catalog subscriptions">
     <Link className="subscription-back" to="/subscriptions">← All subscriptions</Link>
     <LoadState state={state} retry={state.reload} />
     {!state.loading && !state.error && record && <>
       <PageHeader title={record.number} subtitle={`${record.customer_name} · ${record.plan_name}`} actions={<><Badge status={record.status} />{record.status === 'DRAFT' && <Link className="btn btn-primary" to={'/subscriptions/' + id + '/edit'}>Edit draft</Link>}</>} />
-      <StatusSteps status={record.status} />
+      {record.status === 'CLOSED' ? <p className="alert alert-info">This subscription is closed and cannot be reopened.</p> : <StatusSteps status={record.status} />}
+      {record.status !== 'CLOSED' && <Card title="Next steps" actions={<ActionButtons record={record} onAction={setAction} />}>
+        {notice ? <p className="alert alert-info" role="status">{notice}</p> : <>
+          {record.status === 'DRAFT' && <p className="muted">Review the products and dates, then issue a quotation for the customer.</p>}
+          {record.status === 'QUOTATION' && <p className="muted">Record the customer’s acceptance before activating. Revise the quotation if the terms need to change.</p>}
+          {record.status === 'CONFIRMED' && <p className="muted">The quotation is accepted and ready to activate.</p>}
+          {record.status === 'ACTIVE' && <p className="muted">This subscription is active. Available actions follow the plan’s rules.</p>}
+          {record.status === 'PAUSED' && <p className="muted">This subscription is paused. Resume it when the customer is ready.</p>}
+        </>}
+      </Card>}
       <div className="grid grid-2">
         <Card title="Customer and dates"><dl className="subscription-facts">
           <div><dt>Customer</dt><dd>{record.customer_name}<span className="catalog-cell-note">{record.customer_email}</span></dd></div>
@@ -24,6 +41,7 @@ function Details({ id }) {
           <div><dt>Plan</dt><dd>{record.plan_name}</dd></div>
           <div><dt>Current plan fee</dt><dd>{money(record.plan_price)} / {PERIOD_LABEL[record.billing_period]}</dd></div>
           <div><dt>Minimum quantity</dt><dd>{record.min_quantity} units</dd></div>
+          <div><dt>Close when expired</dt><dd>{record.auto_close ? 'Included in Close expired' : 'Close individually'}</dd></div>
           <div><dt>Pause / early close / renew</dt><dd>{[record.pausable, record.closable, record.renewable].map(v => v ? 'Allowed' : 'Unavailable').join(' / ')}</dd></div>
           <div><dt>Subscription discount</dt><dd>{record.discount_name || 'None'}</dd></div>
         </dl></Card>
@@ -37,6 +55,7 @@ function Details({ id }) {
         <p className="muted">Before plan fees, discounts and tax. Product prices were captured when this draft was saved.</p>
       </Card>
       {record.notes && <Card title="Notes"><p className="subscription-notes">{record.notes}</p></Card>}
+      {action && <ActionDialog action={action} record={record} onClose={() => setAction(null)} onSaved={saved} onReload={() => { setAction(null); state.reload(); }} />}
     </>}
   </div>;
 }
