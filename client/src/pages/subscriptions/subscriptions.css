@@ -18,6 +18,8 @@
 .subscription-subtotal { display: flex; justify-content: space-between; gap: 16px; font-size: 18px; margin-top: 20px; }
 .subscription-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 .subscriptions .steps { flex-wrap: wrap; row-gap: 12px; margin-bottom: 24px; }
+.subscriptions .card-head { flex-wrap: wrap; gap: 16px; }
+.subscriptions .card-head > .row { min-width: 0; }
 @media (max-width: 600px) {
   .subscription-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .subscription-line > :first-child { grid-column: 1 / -1; }
