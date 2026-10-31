@@ -35,7 +35,7 @@ export async function createPeriodInvoice(client, subscription, plan, window, in
       billable_days,period_days,subtotal,discount_total,tax_total,total,applied_discount_ids)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
     ON CONFLICT (subscription_id,period_start) DO NOTHING RETURNING id,number`,
-  [number, subscription.id, subscription.customer_id, confirm ? 'CONFIRMED' : 'DRAFT', invoiceDate,
+  [number, subscription.id, subscription.customer_id, confirm ? (Number(prices.total) === 0 ? 'PAID' : 'CONFIRMED') : 'DRAFT', invoiceDate,
     addDays(invoiceDate, subscription.payment_term_days), window.period_start, window.period_end,
     window.billable_days, window.period_days, prices.subtotal, prices.discount_total, prices.tax_total,
     prices.total, prices.applied_discount_ids]);

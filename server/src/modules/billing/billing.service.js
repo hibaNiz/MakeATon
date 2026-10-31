@@ -4,6 +4,7 @@ import { HttpError } from '../../lib/errors.js';
 import { billingWindow } from './schedule.js';
 import { billingRunSchema } from './validation.js';
 import { createPeriodInvoice } from './invoice.service.js';
+import { recordId } from '../catalog/validation.js';
 
 const pending = `(s.status='ACTIVE' AND s.next_billing_date <= $1
   AND (s.expiry_date IS NULL OR s.next_billing_date <= s.expiry_date))`;
@@ -31,6 +32,22 @@ async function processSubscription(client, subscription, currentDate, confirm) {
     [close ? null : window.next_billing_date, close ? 'CLOSED' : 'ACTIVE', subscription.id]);
   return { created: invoice.created ? 1 : 0, skipped: invoice.created ? 0 : 1,
     closed: close ? 1 : 0, invoice: invoice.created ? { id: invoice.id, number: invoice.number, subscription_id: subscription.id } : null };
+}
+
+// Manual draft creation uses the same locks, prices and cursor update as the runner.
+export async function billNextPeriod(id) {
+  const subscriptionId = recordId.parse(id), currentDate = today();
+  return transaction(async client => {
+    const { rows: [subscription] } = await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [subscriptionId]);
+    if (!subscription) throw new HttpError(404, 'Subscription not found');
+    if (subscription.status !== 'ACTIVE' || !subscription.next_billing_date
+      || subscription.next_billing_date > currentDate
+      || (subscription.expiry_date && subscription.next_billing_date > subscription.expiry_date))
+      throw new HttpError(409, 'This subscription has no billing period due');
+    const result = await processSubscription(client, subscription, currentDate, false);
+    if (!result.created) throw new HttpError(409, 'This period already has an invoice');
+    return result.invoice;
+  });
 }
 
 // Each work item is one period or one expiry closure, with its own transaction.
