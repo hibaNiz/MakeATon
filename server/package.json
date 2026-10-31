@@ -12,6 +12,7 @@
     "db:setup": "node db/setup.js",
     "db:seed": "node db/seed-catalog.js",
     "db:seed:catalog": "node db/seed-catalog.js",
+    "db:seed:billing": "node db/seed-billing.js",
     "db:reset": "node db/setup.js && node db/seed-catalog.js",
     "test": "node --test tests/*.test.js"
   },
