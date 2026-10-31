@@ -199,4 +199,43 @@ test('Billing engine with PostgreSQL', {
     assert.equal((await run(bad)).created, 1);
     assert.equal((await one('SELECT used_count FROM discounts WHERE id=$1', [d.id])).used_count, 1);
   });
+
+  await t.test('expiry maintenance preserves active backlogs until billing finishes', async () => {
+    const sub = await subscription({ start: '2024-01-01', expiry: '2024-02-29', auto_close: true });
+    const { closeExpiredSubscriptions } = await import('../src/modules/subscriptions/lifecycle.service.js');
+    await closeExpiredSubscriptions();
+    assert.equal((await getSub(sub)).status, 'ACTIVE');
+    assert.equal((await getSub(sub)).next_billing_date, sub.start_date);
+    assert.equal((await run(sub)).created, 2);
+    assert.equal((await getSub(sub)).status, 'CLOSED');
+  });
+
+  await t.test('manual billing requires staff access and rejects forged or unbounded inputs', async () => {
+    const { createApp } = await import('../src/app.js');
+    const { signToken } = await import('../src/lib/auth.js');
+    const app = await createApp();
+    server = await new Promise(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
+    const tokens = { CUSTOMER: signToken(customer) };
+    for (const role of ['ADMIN', 'STAFF']) {
+      const user = await one('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4) RETURNING *',
+        [role, role.toLowerCase() + '@example.com', 'unused', role]);
+      tokens[role] = signToken(user);
+    }
+    async function request(body, status, role = 'STAFF') {
+      const response = await fetch(`http://127.0.0.1:${server.address().port}/api/billing/run`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(role ? { Authorization: 'Bearer ' + tokens[role] } : {}) },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      assert.equal(response.status, status, JSON.stringify(result));
+      return result;
+    }
+    await request({}, 401, null); await request({}, 403, 'CUSTOMER');
+    for (const body of [{ limit: 0 }, { limit: 501 }, { limit: 1.5 }, { confirm: 'false' },
+      { total: 1 }, { date: addDays(currentDate, 1) }, { subscription_id: -1 }]) await request(body, 400);
+    const sub = await subscription();
+    const result = await request({ subscription_id: sub.id, limit: 1, confirm: false }, 200);
+    assert.equal(result.created, 1); assert.equal((await invoices(sub))[0].status, 'DRAFT');
+    assert.equal((await request({ subscription_id: sub.id }, 200, 'ADMIN')).created, 0);
+  });
 });

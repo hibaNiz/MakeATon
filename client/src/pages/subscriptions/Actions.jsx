@@ -96,7 +96,7 @@ export function CloseExpiredDialog({ onClose, onSaved }) {
   }
   return <Dialog title="Close expired subscriptions" busy={busy} onClose={onClose}>
     <FormError error={error} />
-    <p>Close all active or paused subscriptions whose expiry is before {date(today())} and whose plan has auto-close enabled.</p>
+    <p>Close expired subscriptions whose plan has auto-close enabled. Expiry must be before {date(today())}. Active subscriptions with unbilled periods stay open until billing catches up.</p>
     <p className="muted">This applies across all customers, regardless of your list filters. Closing is permanent.</p>
     <div className="form-actions"><Button variant="secondary" disabled={busy} onClick={onClose}>Cancel</Button><Button variant="danger" loading={busy} onClick={closeExpired}>Close expired subscriptions</Button></div>
   </Dialog>;

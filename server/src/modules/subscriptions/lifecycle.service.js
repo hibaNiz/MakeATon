@@ -63,11 +63,13 @@ export async function transitionSubscription(id, data) {
   });
 }
 
-// Subscription-only maintenance. No invoices, payments or discount counters are touched.
+// Subscription-only maintenance. Leave active billing backlogs for the engine.
 // Expiry is inclusive: a subscription remains valid through the expiry date.
 export async function closeExpiredSubscriptions() {
   const result = await query(`UPDATE subscriptions s SET status='CLOSED',next_billing_date=NULL,updated_at=now()
     FROM plans p WHERE p.id=s.plan_id AND p.auto_close=true
-    AND s.status IN ('ACTIVE','PAUSED') AND s.expiry_date < $1 RETURNING s.id`, [today()]);
+    AND s.status IN ('ACTIVE','PAUSED') AND s.expiry_date < $1
+    AND (s.status='PAUSED' OR s.next_billing_date IS NULL OR s.next_billing_date > s.expiry_date)
+    RETURNING s.id`, [today()]);
   return { closed: result.rowCount };
 }
